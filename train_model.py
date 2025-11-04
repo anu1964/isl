@@ -5,7 +5,7 @@ from sklearn.metrics import classification_report, accuracy_score
 import joblib
 
 # Load filtered dataset
-df = pd.read_csv("isl_letters_only.csv")
+df = pd.read_csv("isl_prathum_landmarks.csv")
 df.dropna(inplace=True)
 
 # Split features and labels
