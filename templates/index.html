@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language To Text Conversion</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Sign Language To Text Conversion</h1>
+            <p>Real-time gesture recognition with text and speech output</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-container">
+                    <img src="{{ url_for('video_feed') }}" alt="Sign Language Detection">
+                </div>
+            </div>
+
+            <!-- Control Section -->
+            <div class="control-section">
+                <!-- Character & Sentence -->
+                <div class="output-section">
+                    <div class="output-row">
+                        <div class="output-label">Character:</div>
+                        <div id="char" class="output-value char-value">_</div>
+                    </div>
+                    <div class="output-row">
+                        <div class="output-label">Sentence:</div>
+                        <div id="sentence" class="output-value"></div>
+                    </div>
+                </div>
+
+                <!-- Translation -->
+                <div class="translation-section">
+                    <div class="section-title">Translation</div>
+                    <div class="translation-row">
+                        <select id="lang">
+                            <option value="hi">Hindi</option>
+                            <option value="kn">Kannada</option>
+                            <option value="ta">Tamil</option>
+                            <option value="te">Telugu</option>
+                        </select>
+                        <button onclick="translateText()" class="translate-btn">Translate</button>
+                    </div>
+                    <div class="output-row">
+                        <div class="output-label">Translated:</div>
+                        <div id="translation" class="output-value"></div>
+                    </div>
+                </div>
+
+                <!-- Suggestions -->
+                <div class="suggestions-section">
+                    <div class="section-title">Suggestions</div>
+                    <div id="wordSuggestions" class="suggestions-grid">
+                        <div class="suggestion-item">HELLO</div>
+                        <div class="suggestion-item">THANK</div>
+                        <div class="suggestion-item">HELP</div>
+                        <div class="suggestion-item">YOU</div>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="control-buttons">
+                    <button onclick="addChar()" class="control-btn">Add</button>
+                    <button onclick="clearAll()" class="control-btn">Clear</button>
+                    <button onclick="undo()" class="control-btn">Undo</button>
+                    <button onclick="addSpace()" class="control-btn">Space</button>
+                    <button onclick="autoSpeakToggle()" id="autoSpeakBtn" class="control-btn">Auto Speak OFF</button>
+                    <button onclick="deleteLast()" class="control-btn">Delete</button>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button onclick="clearAll()" class="action-btn clear-btn">CLEAR ALL</button>
+                    <button onclick="speakText()" class="action-btn speak-btn">SPEAK TEXT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

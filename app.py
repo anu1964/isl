@@ -1,22 +1,13 @@
-from flask import Flask, render_template, Response, jsonify, request, send_file
+from flask import Flask, render_template, Response, jsonify, request
 import cv2
 import joblib
 import numpy as np
 import mediapipe as mp
 import time
 import requests
-import os
-import io
 from collections import Counter
-from gtts import gTTS
-import pygame
-import threading
-import tempfile
 
 app = Flask(__name__)
-
-# Initialize pygame mixer for audio playback
-pygame.mixer.init()
 
 # Load model and word list
 try:
@@ -44,9 +35,6 @@ last_prediction = ""
 recent_preds = []
 last_prediction_time = 0
 cooldown = 0.2
-
-# Audio management
-current_audio_file = None
 
 def gen_frames():
     global last_prediction, recent_preds, last_prediction_time
@@ -106,46 +94,6 @@ def gen_frames():
     
     cap.release()
 
-def speak_kannada_async(text):
-    """Generate and play Kannada speech in a separate thread"""
-    def play_audio():
-        try:
-            global current_audio_file
-            
-            # Stop any currently playing audio
-            pygame.mixer.music.stop()
-            
-            # Create gTTS for Kannada
-            tts = gTTS(text=text, lang='kn', slow=False)
-            
-            # Save to temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as fp:
-                tts.save(fp.name)
-                current_audio_file = fp.name
-            
-            # Play the audio
-            pygame.mixer.music.load(current_audio_file)
-            pygame.mixer.music.play()
-            
-            # Wait for playback to complete
-            while pygame.mixer.music.get_busy():
-                pygame.time.wait(100)
-                
-            # Clean up
-            try:
-                if os.path.exists(current_audio_file):
-                    os.unlink(current_audio_file)
-            except:
-                pass
-                
-        except Exception as e:
-            print(f"TTS Error: {e}")
-    
-    # Run in separate thread to avoid blocking
-    thread = threading.Thread(target=play_audio)
-    thread.daemon = True
-    thread.start()
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -160,7 +108,6 @@ def get_prediction():
 
 def simple_translate(text, target_lang='kn'):
     """Simple fallback translation using word mapping"""
-    # Enhanced English to Kannada word mapping
     word_map = {
         'hello': 'ನಮಸ್ಕಾರ',
         'cat': 'ಬೆಕ್ಕು',
@@ -178,9 +125,6 @@ def simple_translate(text, target_lang='kn'):
         'that': 'ಅದು',
         'is': 'ಆಗಿದೆ',
         'are': 'ಆಗಿದ್ದಾರೆ',
-        'the': '',
-        'a': '',
-        'an': '',
         'yes': 'ಹೌದು',
         'no': 'ಇಲ್ಲ',
         'water': 'ನೀರು',
@@ -214,9 +158,8 @@ def simple_translate(text, target_lang='kn'):
         'house': 'ಮನೆ',
         'school': 'ಶಾಲೆ',
         'book': 'ಪುಸ್ತಕ',
-        'pen': 'ಪೆನ್',
         'teacher': 'ಶಿಕ್ಷಕ',
-        'student': 'ವಿದ್ಯಾರ್ಥಿ'
+        'student': 'ವಿದ್ಯಾರ್ಥी'
     }
     
     words = text.lower().split()
@@ -224,7 +167,7 @@ def simple_translate(text, target_lang='kn'):
     
     for word in words:
         if word in word_map:
-            if word_map[word]:  # Skip empty translations for articles
+            if word_map[word]:
                 translated_words.append(word_map[word])
         else:
             translated_words.append(f"[{word}]")
@@ -256,34 +199,8 @@ def translate():
             
     except Exception as e:
         print(f"Translation error: {e}")
-        # Final fallback
         translated = simple_translate(text, lang)
         return jsonify({'translated': translated})
-
-@app.route('/speak')
-def speak():
-    """Endpoint to speak Kannada text"""
-    text = request.args.get('text', '')
-    lang = request.args.get('lang', 'kn')
-    
-    if not text or text.strip() == "":
-        return jsonify({'status': 'error', 'message': 'No text provided'})
-    
-    try:
-        speak_kannada_async(text)
-        return jsonify({'status': 'success', 'message': 'Playing audio'})
-    except Exception as e:
-        print(f"Speech error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)})
-
-@app.route('/stop_speech')
-def stop_speech():
-    """Stop currently playing speech"""
-    try:
-        pygame.mixer.music.stop()
-        return jsonify({'status': 'success', 'message': 'Speech stopped'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/suggest')
 def suggest():
@@ -300,12 +217,5 @@ def suggest():
 
 if __name__ == '__main__':
     print("Starting ISL to Text Converter...")
-    print("Available routes:")
-    print("  / - Main page")
-    print("  /video_feed - Camera feed with hand detection")
-    print("  /get_prediction - Get current predicted character")
-    print("  /translate - Translate text to Kannada")
-    print("  /speak - Speak Kannada text")
-    print("  /stop_speech - Stop current speech")
-    print("  /suggest - Get word suggestions")
+    print("Open http://localhost:5000 in your browser")
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -2,8 +2,9 @@ let word = "";
 let sentence = "";
 let previousSentence = "";
 let autoSpeak = false;
+let speechSynth = window.speechSynthesis;
 
-// Initialize display
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     updateDisplay();
     setInterval(fetchPrediction, 500);
@@ -11,99 +12,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function fetchPrediction() {
     fetch("/get_prediction")
-        .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
             const char = data.prediction || "_";
             document.getElementById("char").innerText = char;
-
-            // Update letter suggestions
-            const letters = getLetterSuggestions(char);
-            updateLetterSuggestions(letters);
         })
         .catch(error => {
-            console.error('Error fetching prediction:', error);
             document.getElementById("char").innerText = "E";
         });
-}
-
-function getLetterSuggestions(currentChar) {
-    if (!currentChar || currentChar === "_" || currentChar === "E") {
-        return ["A", "B", "C"];
-    }
-    
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-    const index = alphabet.indexOf(currentChar.toUpperCase());
-    
-    if (index === -1) return ["A", "B", "C"];
-    
-    return [
-        alphabet[(index + 1) % 26],
-        alphabet[(index + 2) % 26],
-        alphabet[(index + 3) % 26]
-    ];
-}
-
-function updateLetterSuggestions(letters) {
-    const container = document.getElementById("letterSuggestions");
-    container.innerHTML = "";
-    
-    letters.forEach(letter => {
-        const span = document.createElement("span");
-        span.innerText = letter;
-        span.className = "suggestion";
-        span.onclick = () => selectLetter(letter);
-        container.appendChild(span);
-    });
-}
-
-function selectLetter(letter) {
-    word += letter;
-    updateDisplay();
-    updateWordSuggestions();
 }
 
 function addChar() {
     const char = document.getElementById("char").innerText;
     if (char && char !== "_" && char !== "E") {
-        word += char;
+        sentence += char;
         updateDisplay();
         updateWordSuggestions();
     }
 }
 
 function addSpace() {
-    if (word.trim()) {
-        previousSentence = sentence;
-        sentence += word + " ";
-        word = "";
-        updateDisplay();
-        translateText();
-    }
+    sentence += " ";
+    updateDisplay();
 }
 
 function deleteLast() {
-    if (word.length > 0) {
-        word = word.slice(0, -1);
-    } else if (sentence.trim()) {
+    if (sentence.length > 0) {
         previousSentence = sentence;
-        const words = sentence.trim().split(" ");
-        words.pop();
-        sentence = words.join(" ") + (words.length > 0 ? " " : "");
+        sentence = sentence.slice(0, -1);
+        updateDisplay();
     }
-    updateDisplay();
-    updateWordSuggestions();
 }
 
 function clearAll() {
     previousSentence = sentence;
-    word = "";
     sentence = "";
+    document.getElementById("translation").innerText = "";
     updateDisplay();
-    document.getElementById("translation").innerText = "_";
-    stopSpeech();
 }
 
 function undo() {
@@ -112,166 +57,166 @@ function undo() {
         sentence = previousSentence;
         previousSentence = temp;
         updateDisplay();
-        translateText();
     }
-}
-
-function saveSentence() {
-    const text = sentence.trim();
-    if (!text) {
-        alert("No sentence to save!");
-        return;
-    }
-    
-    const blob = new Blob([text], { type: "text/plain" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "isl_sentence.txt";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-function translateText() {
-    const text = sentence.trim();
-    if (!text) {
-        document.getElementById("translation").innerText = "_";
-        return;
-    }
-
-    const lang = document.getElementById("lang").value;
-    
-    fetch(`/translate?lang=${lang}&text=${encodeURIComponent(text)}`)
-        .then(response => {
-            if (!response.ok) throw new Error('Translation failed');
-            return response.json();
-        })
-        .then(data => {
-            const translatedText = data.translated || "Translation unavailable";
-            document.getElementById("translation").innerText = translatedText;
-            
-            // Auto-speak if enabled
-            if (autoSpeak && translatedText && translatedText !== "Translation unavailable" && !translatedText.includes("[")) {
-                speakTranslation(translatedText);
-            }
-        })
-        .catch(error => {
-            console.error('Translation error:', error);
-            document.getElementById("translation").innerText = `[Offline: ${text}]`;
-        });
-}
-
-function speakTranslation() {
-    const translatedText = document.getElementById("translation").innerText;
-    
-    if (!translatedText || translatedText === "_" || translatedText.includes("[") || translatedText === "Translation unavailable") {
-        alert("No valid translation to speak!");
-        return;
-    }
-    
-    // Disable speak button during playback
-    const speakBtn = document.getElementById("speakBtn");
-    speakBtn.disabled = true;
-    
-    fetch(`/speak?text=${encodeURIComponent(translatedText)}&lang=kn`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                console.log('Playing audio...');
-                // Re-enable button after a delay (handled by server)
-                setTimeout(() => {
-                    speakBtn.disabled = false;
-                }, 3000);
-            } else {
-                alert('Speech error: ' + data.message);
-                speakBtn.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Speech error:', error);
-            alert('Failed to play audio: ' + error.message);
-            speakBtn.disabled = false;
-        });
-}
-
-function stopSpeech() {
-    fetch('/stop_speech')
-        .then(response => response.json())
-        .then(data => {
-            console.log('Speech stopped');
-        })
-        .catch(error => {
-            console.error('Stop speech error:', error);
-        });
 }
 
 function autoSpeakToggle() {
     autoSpeak = !autoSpeak;
     const btn = document.getElementById("autoSpeakBtn");
-    if (autoSpeak) {
-        btn.textContent = "Auto-Speak: ON";
-        btn.classList.add('active');
-    } else {
-        btn.textContent = "Auto-Speak: OFF";
-        btn.classList.remove('active');
+    btn.textContent = autoSpeak ? "Auto Speak ON" : "Auto Speak OFF";
+}
+
+function speakText() {
+    const translatedText = document.getElementById("translation").innerText;
+    const englishText = sentence.trim();
+    
+    // If there's a Kannada translation, speak that, otherwise speak English
+    const textToSpeak = translatedText && translatedText !== "Translation failed" && translatedText !== "Translation offline" ? translatedText : englishText;
+    const langToUse = textToSpeak === translatedText ? 'kn' : 'en';
+    
+    if (!textToSpeak) return;
+    
+    if ('speechSynthesis' in window) {
+        // Stop any current speech
+        speechSynth.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        
+        // Set language based on the text
+        if (textToSpeak === translatedText && translatedText !== englishText) {
+            // It's a translation - try to use Kannada
+            utterance.lang = 'kn-IN'; // Kannada
+            utterance.rate = 0.8; // Slower for better pronunciation
+        } else {
+            // It's English text
+            utterance.lang = 'en-US'; // English
+        }
+        
+        // Get available voices and try to find appropriate one
+        const voices = speechSynth.getVoices();
+        let selectedVoice = null;
+        
+        if (utterance.lang === 'kn-IN') {
+            // Try to find Kannada voice
+            selectedVoice = voices.find(voice => 
+                voice.lang.includes('kn') || 
+                voice.lang.includes('hi') || // Fallback to Hindi if Kannada not available
+                voice.name.toLowerCase().includes('kannada') ||
+                voice.name.toLowerCase().includes('indian')
+            );
+        } else {
+            // Find English voice
+            selectedVoice = voices.find(voice => voice.lang.includes('en'));
+        }
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        
+        utterance.onstart = function() {
+            console.log('Started speaking:', textToSpeak);
+        };
+        
+        utterance.onend = function() {
+            console.log('Finished speaking');
+        };
+        
+        utterance.onerror = function(event) {
+            console.error('Speech synthesis error:', event);
+            // Fallback: try with default settings
+            if (utterance.lang !== 'en-US') {
+                const fallbackUtterance = new SpeechSynthesisUtterance(textToSpeak);
+                fallbackUtterance.lang = 'en-US';
+                speechSynth.speak(fallbackUtterance);
+            }
+        };
+        
+        speechSynth.speak(utterance);
     }
 }
 
-function setVolume(volume) {
-    document.getElementById("volumeValue").textContent = volume + '%';
-    // Volume is handled by the system, this is for UI only
-    // In a real implementation, you might send this to the server
+function translateText() {
+    const text = sentence.trim();
+    if (!text) return;
+
+    const lang = document.getElementById("lang").value;
+    
+    // Show loading
+    document.getElementById("translation").innerText = "Translating...";
+    
+    fetch(`/translate?lang=${lang}&text=${encodeURIComponent(text)}`)
+        .then(response => response.json())
+        .then(data => {
+            const translatedText = data.translated || "Translation failed";
+            document.getElementById("translation").innerText = translatedText;
+            
+            if (autoSpeak && translatedText !== "Translation failed") {
+                setTimeout(() => {
+                    speakText();
+                }, 500);
+            }
+        })
+        .catch(error => {
+            document.getElementById("translation").innerText = "Translation offline";
+        });
 }
 
 function updateWordSuggestions() {
-    if (!word.trim()) {
-        document.getElementById("wordSuggestions").innerHTML = "";
+    const currentWord = sentence.trim().split(' ').pop() || "";
+    
+    if (!currentWord) {
+        document.getElementById("wordSuggestions").innerHTML = `
+            <div class="suggestion-item">HELLO</div>
+            <div class="suggestion-item">THANK</div>
+            <div class="suggestion-item">HELP</div>
+            <div class="suggestion-item">YOU</div>
+        `;
         return;
     }
 
-    fetch(`/suggest?prefix=${encodeURIComponent(word.toLowerCase())}`)
-        .then(response => {
-            if (!response.ok) throw new Error('Suggestion failed');
-            return response.json();
-        })
+    fetch(`/suggest?prefix=${encodeURIComponent(currentWord.toLowerCase())}`)
+        .then(response => response.json())
         .then(data => {
             const container = document.getElementById("wordSuggestions");
             container.innerHTML = "";
             
             if (data.suggestions && data.suggestions.length > 0) {
-                data.suggestions.forEach(suggestion => {
-                    const span = document.createElement("span");
-                    span.innerText = suggestion;
-                    span.className = "suggestion";
-                    span.onclick = () => selectWord(suggestion);
-                    container.appendChild(span);
+                data.suggestions.slice(0, 4).forEach(suggestion => {
+                    const div = document.createElement("div");
+                    div.className = "suggestion-item";
+                    div.textContent = suggestion.toUpperCase();
+                    div.onclick = () => selectWord(suggestion);
+                    container.appendChild(div);
                 });
+            } else {
+                // Show default suggestions if no matches
+                container.innerHTML = `
+                    <div class="suggestion-item">HELLO</div>
+                    <div class="suggestion-item">THANK</div>
+                    <div class="suggestion-item">HELP</div>
+                    <div class="suggestion-item">YOU</div>
+                `;
             }
-        })
-        .catch(error => {
-            console.error('Suggestion error:', error);
         });
 }
 
 function selectWord(selectedWord) {
-    word = selectedWord;
+    const words = sentence.trim().split(' ');
+    words.pop(); // Remove the partial word
+    words.push(selectedWord);
+    sentence = words.join(' ') + ' ';
     updateDisplay();
 }
 
 function updateDisplay() {
-    document.getElementById("word").innerText = word || "";
-    document.getElementById("sentence").innerText = sentence || "";
-    
-    // Update document title with current word
-    if (word) {
-        document.title = `ISL - ${word}`;
-    } else if (sentence) {
-        const lastWord = sentence.trim().split(" ").pop() || "";
-        document.title = `ISL - ${lastWord}`;
-    } else {
-        document.title = "ISL to Text Converter";
-    }
+    document.getElementById("sentence").innerText = sentence;
+    updateWordSuggestions();
 }
+
+// Load voices when they become available
+speechSynth.onvoiceschanged = function() {
+    console.log('Available voices:', speechSynth.getVoices().length);
+};
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function(event) {
@@ -287,16 +232,6 @@ document.addEventListener('keydown', function(event) {
         case 'Backspace':
             event.preventDefault();
             deleteLast();
-            break;
-        case 'Escape':
-            event.preventDefault();
-            clearAll();
-            break;
-        case 's':
-            if (event.ctrlKey) {
-                event.preventDefault();
-                saveSentence();
-            }
             break;
     }
 });
